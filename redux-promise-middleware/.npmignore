@@ -1,0 +1,13 @@
+.github/
+bin/
+docs/
+examples/
+jspm_packages/
+node_modules/
+src/
+test/
+.babelrc
+.eslintrc
+.npmignore
+.travis.yml
+webpack.config.js

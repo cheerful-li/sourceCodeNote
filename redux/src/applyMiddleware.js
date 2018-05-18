@@ -31,6 +31,15 @@ export default function applyMiddleware(...middlewares) {
       dispatch: (...args) => dispatch(...args)
     }
     const chain = middlewares.map(middleware => middleware(middlewareAPI))
+    // middleware(middlewareAPI) 需要返回一个函数
+    // next => action => {
+    //  // xxx
+    //  // next(action)
+    //  // xxx
+    // }
+
+    // next 理解成当前middleware包装前的dispatch
+    // 这个函数的本质就是，接收dispatch作为参数， 返回一个新的包装后的dispatch
     dispatch = compose(...chain)(store.dispatch)
 
     return {

@@ -11,6 +11,7 @@ export function runSaga(options, saga, ...args) {
     check(saga, is.func, NON_GENERATOR_ERR)
   }
 
+  // 执行saga入口generator函数
   const iterator = saga(...args)
 
   if (process.env.NODE_ENV === 'development') {
@@ -18,7 +19,7 @@ export function runSaga(options, saga, ...args) {
   }
 
   const {
-    channel = stdChannel(),
+    channel = stdChannel(), // 默认是stdChannel
     dispatch,
     getState,
     context,
@@ -28,7 +29,7 @@ export function runSaga(options, saga, ...args) {
     onError,
   } = options
 
-  const effectId = nextSagaId()
+  const effectId = nextSagaId() // 分配唯一id
 
   if (sagaMonitor) {
     // monitors are expected to have a certain interface, let's fill-in any missing ones
@@ -52,7 +53,7 @@ export function runSaga(options, saga, ...args) {
   const task = proc(
     iterator,
     channel,
-    wrapSagaDispatch(dispatch),
+    wrapSagaDispatch(dispatch), // saga中put的action添加标识， SAGA_ACTION
     getState,
     context,
     { sagaMonitor, logger, onError, middleware },

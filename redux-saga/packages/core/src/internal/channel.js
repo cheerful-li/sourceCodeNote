@@ -145,6 +145,8 @@ export function multicastChannel() {
   let currentTakers = []
   let nextTakers = currentTakers
 
+  // 确保在遍历执行currentTakers过程中，不会修改到currentTakers(添加taker，删除taker等操作)
+  // 意思就是在每次遍历中，新的taker总是应该在下一次遍历才会被执行
   const ensureCanMutateNextTakers = () => {
     if (nextTakers !== currentTakers) {
       return
@@ -156,7 +158,7 @@ export function multicastChannel() {
   const close = () => {
     closed = true
     const takers = (currentTakers = nextTakers)
-
+    // 关闭的时候，所有taker执行，传入END action
     for (let i = 0; i < takers.length; i++) {
       const taker = takers[i]
       taker(END)
@@ -167,7 +169,7 @@ export function multicastChannel() {
 
   return {
     [MULTICAST]: true,
-    put(input) {
+    put(input) { // input 参数比较通用， 但是结合redux来用的话，就是指action
       // TODO: should I check forbidden state here? 1 of them is even impossible
       // as we do not possibility of buffer here
       if (process.env.NODE_ENV === 'development') {
@@ -177,21 +179,29 @@ export function multicastChannel() {
       if (closed) {
         return
       }
-
+      // 可以触发redux-saga暴露的END action, 来关闭通道
       if (isEnd(input)) {
         close()
         return
       }
 
       const takers = (currentTakers = nextTakers)
+      // 遍历takers, 执行匹配规则
       for (let i = 0; i < takers.length; i++) {
         const taker = takers[i]
-        if (taker[MATCH](input)) {
+        if (taker[MATCH](input)) { // 匹配时， 执行taker, 删除taker
           taker.cancel()
           taker(input)
         }
       }
     },
+    /*
+    * matcher 可以有几种取值
+    * 不传 或者 * 全部匹配
+    * 字符串或者symbol, ===匹配
+    * 有toString的函数， 函数toString后===匹配
+    * 函数， 执行函数，返回true时匹配
+    * */
     take(cb, matcher = matchers.wildcard) {
       if (closed) {
         cb(END)
@@ -214,10 +224,13 @@ export function stdChannel() {
   const chan = multicastChannel()
   const { put } = chan
   chan.put = input => {
+    // saga中put的action不受下面规则约束，总是最快执行
     if (input[SAGA_ACTION]) {
       put(input)
       return
     }
+    // action执行过程中，可能会dispatch其它action
+    // 确保新加入的action，必须在当前action执行完毕后，才被dispatch执行
     asap(() => put(input))
   }
   return chan

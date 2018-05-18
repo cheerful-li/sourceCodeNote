@@ -4,6 +4,8 @@ import { identity } from './utils'
 import { runSaga } from './runSaga'
 
 export default function sagaMiddlewareFactory({ context = {}, ...options } = {}) {
+  // sagaMonitor参数是一个对象， 包含 effectTriggered effectResolved effectRejected effectCancelled actionDispatched 五个事件函数
+  // redux-sage在对应的时机会触发对应的事件函数
   const { sagaMonitor, logger, onError, effectMiddlewares } = options
 
   // 检查选项是否合法
@@ -23,6 +25,7 @@ export default function sagaMiddlewareFactory({ context = {}, ...options } = {})
 
   function sagaMiddleware({ getState, dispatch }) {
     const channel = stdChannel()
+    // emitter参数可以用来对channel.put做包装
     channel.put = (options.emitter || identity)(channel.put)
 
     sagaMiddleware.run = runSaga.bind(null, {
@@ -36,11 +39,15 @@ export default function sagaMiddlewareFactory({ context = {}, ...options } = {})
       effectMiddlewares,
     })
 
+    // 包装store的dispatch
     return next => action => {
+      // 触发actionDispatched事件回调
       if (sagaMonitor && sagaMonitor.actionDispatched) {
         sagaMonitor.actionDispatched(action)
       }
+      // 先触发store的dispatch
       const result = next(action) // hit reducers
+      // 再触发redux-saga的saga
       channel.put(action)
       return result
     }

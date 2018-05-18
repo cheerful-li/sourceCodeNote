@@ -6,6 +6,7 @@ const queue = []
   - Decrementing releases a lock. Zero locks puts the scheduler in a `released` state. This
     triggers flushing the queued tasks.
 **/
+// 信号量
 let semaphore = 0
 
 /**
@@ -16,6 +17,8 @@ let semaphore = 0
 function exec(task) {
   try {
     suspend()
+    // task执行过程中，可能会插入其它task
+    // 确保插入的task不会中途执行，必须在当前task执行完毕后，依次执行
     task()
   } finally {
     release()
@@ -26,8 +29,10 @@ function exec(task) {
   Executes or queues a task depending on the state of the scheduler (`suspended` or `released`)
 **/
 export function asap(task) {
+  // 放入队列
   queue.push(task)
 
+  // 当前队列无其它任务，直接开始执行
   if (!semaphore) {
     suspend()
     flush()
@@ -56,6 +61,7 @@ export function flush() {
   release()
 
   let task
+  // 信号量为0时， 执行队列里面全部任务
   while (!semaphore && (task = queue.shift()) !== undefined) {
     exec(task)
   }

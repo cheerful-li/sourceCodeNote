@@ -178,6 +178,7 @@ export const internalErr = err =>
 export const createSetContextWarning = (ctx, props) =>
   `${ctx ? ctx + '.' : ''}setContext(props): argument ${props} is not a plain object`
 
+// saga中put的action都有一个标识 SAGA_ACTION
 export const wrapSagaDispatch = dispatch => action =>
   dispatch(Object.defineProperty(action, SAGA_ACTION, { value: true }))
 

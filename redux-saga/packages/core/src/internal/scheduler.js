@@ -7,6 +7,8 @@ const queue = []
     triggers flushing the queued tasks.
 **/
 // 信号量
+// 主要是为了延时执行put, 避免一些操作的内部执行put，但是put的操作又未能被take捕获的问题
+// 相比 setTimeout(fn, 0)和Promise.resolve()等方式更加高效
 let semaphore = 0
 
 /**
@@ -28,6 +30,7 @@ function exec(task) {
 /**
   Executes or queues a task depending on the state of the scheduler (`suspended` or `released`)
 **/
+// asap 尽快， as soon as possible
 export function asap(task) {
   // 放入队列
   queue.push(task)

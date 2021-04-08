@@ -475,6 +475,7 @@ func redirectTrailingSlash(c *Context) {
 	if prefix := path.Clean(c.Request.Header.Get("X-Forwarded-Prefix")); prefix != "." {
 		p = prefix + "/" + req.URL.Path
 	}
+	// 以/结尾的就去掉/试试， 非/结尾的就加上/试试看
 	req.URL.Path = p + "/"
 	if length := len(p); length > 1 && p[length-1] == '/' {
 		req.URL.Path = p[:length-1]

@@ -133,11 +133,13 @@ func (n *node) incrementChildPrio(pos int) int {
 
 // addRoute adds a node with the given handle to the path.
 // Not concurrency-safe!
+// 前缀树，基数树
 func (n *node) addRoute(path string, handlers HandlersChain) {
 	fullPath := path
 	n.priority++
 
 	// Empty tree
+	// 空树，根节点，直接插入。
 	if len(n.path) == 0 && len(n.children) == 0 {
 		n.insertChild(path, fullPath, handlers)
 		n.nType = root
@@ -151,9 +153,14 @@ walk:
 		// Find the longest common prefix.
 		// This also implies that the common prefix contains no ':' or '*'
 		// since the existing key can't contain those chars.
+		// 公共前缀的长度
+		//   公共前缀不会包含 : 和 *,
+		// 		因为在插入节点的时候， /a/:name 这种总是会拆分成多个节点， /a/ -> :name
+		// 		另外下面在处理的时候，有针对 : 和 * 节点父节点的处理（wildChild 为true )
 		i := longestCommonPrefix(path, n.path)
 
 		// Split edge
+		// 拆分当前节点， eg: 当前节点/a/b，插入 /a/c时，把当前节点拆分为 /a -> /b, 其中/b保有原来的handlers, 当前节点指向/a
 		if i < len(n.path) {
 			child := node{
 				path:      n.path[i:],
@@ -167,6 +174,7 @@ walk:
 
 			n.children = []*node{&child}
 			// []byte for proper unicode char conversion, see #65
+			// 所有子节点的路径首字符的字符串
 			n.indices = bytesconv.BytesToString([]byte{n.path[i]})
 			n.path = path[:i]
 			n.handlers = nil
@@ -175,7 +183,10 @@ walk:
 		}
 
 		// Make new node a child of this node
+		// 上一步处理中， /a/b 已经拆分成 /a -> /b两个节点，当前节点n指向 /a
+		// 此时，/a/c插入为 /a的子节点
 		if i < len(path) {
+			// /a/c 变成 /c
 			path = path[i:]
 
 			if n.wildChild {

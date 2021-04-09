@@ -161,6 +161,7 @@ walk:
 
 		// Split edge
 		// 拆分当前节点， eg: 当前节点/a/b，插入 /a/c时，把当前节点拆分为 /a -> /b, 其中/b保有原来的handlers, 当前节点指向/a
+		// eg: 当前 /src 插入 /search , 结果 /s -> rc,earch
 		if i < len(n.path) {
 			child := node{
 				path:      n.path[i:],
@@ -189,20 +190,29 @@ walk:
 			// /a/c 变成 /c
 			path = path[i:]
 
+			// 对子节点有通配符的特殊处理
+			// eg:  /a/:name 插入 /a/:name/cc
 			if n.wildChild {
 				parentFullPathIndex += len(n.path)
+				// n 由 /a/ 指向到 :name
+				// path 值为 :name/cc
 				n = n.children[0]
 				n.priority++
 
 				// Check if the wildcard matches
+				// catch all (*)通配符不能有子节点
+				// 只有 /a/:name 插入 /a/:name/cc这种情况，不可插入 /a/:namesss, 不可插入 /a/xxx
 				if len(path) >= len(n.path) && n.path == path[:len(n.path)] &&
 					// Adding a child to a catchAll is not possible
 					n.nType != catchAll &&
 					// Check for longer wildcard, e.g. :name and :names
 					(len(n.path) >= len(path) || path[len(n.path)] == '/') {
+					// n已经指向了 :name节点， path 值为 :name/cc, 继续循环逻辑就可以了。
 					continue walk
 				}
-
+				// 通配符路径异常的情况。
+				//  1.  /a/:name 插入 /a/:namesss
+				//  2.  /a/:name 插入 /a/xxx
 				pathSeg := path
 				if n.nType != catchAll {
 					pathSeg = strings.SplitN(path, "/", 2)[0]
@@ -218,6 +228,9 @@ walk:
 			c := path[0]
 
 			// slash after param
+			// param（:xxx）节点莫得indices?
+			//	还是说param如果有子节点，那么理论上只会有一个，一定是 /开头
+			//	不像普通路径 /abc， 插入/ad, 可以拆分成 /a -> bc,d
 			if n.nType == param && c == '/' && len(n.children) == 1 {
 				parentFullPathIndex += len(n.path)
 				n = n.children[0]
@@ -226,6 +239,7 @@ walk:
 			}
 
 			// Check if a child with the next path byte exists
+			// 查找indices，寻找首字符匹配的子节点，如果有，n指向到子节点。继续循环
 			for i, max := 0, len(n.indices); i < max; i++ {
 				if c == n.indices[i] {
 					parentFullPathIndex += len(n.path)
@@ -236,15 +250,23 @@ walk:
 			}
 
 			// Otherwise insert it
+			// 没找到indices，直接插入为当前节点n的子节点
+			// 需要注意的是，对于通配符的特殊处理
+			//	新增后缀非通配符开头时，给n创建子节点，然后在子节点上执行insertChild
+			//  新增后缀通配符开头时，...
 			if c != ':' && c != '*' {
+				// n 的 indices 添加新孩子节点的路径首字母
 				// []byte for proper unicode char conversion, see #65
 				n.indices += bytesconv.BytesToString([]byte{c})
 				child := &node{
 					fullPath: fullPath,
 				}
 				n.children = append(n.children, child)
+				// 子节点权重调整。 根据调整后权重更新n的indices顺序
 				n.incrementChildPrio(len(n.indices) - 1)
 				n = child
+			} else {
+				// eg: 已有 /search/ 插入 /search/:name, 此时 path值为 :name, c值为 : , n指向/search/
 			}
 			n.insertChild(path, fullPath, handlers)
 			return
@@ -287,7 +309,9 @@ func findWildcard(path string) (wildcard string, i int, valid bool) {
 
 func (n *node) insertChild(path string, fullPath string, handlers HandlersChain) {
 	for {
+		// 循环处理通配符，可能会创建多个节点
 		// Find prefix until first wildcard
+		//   /a/:name/b  返回   :name,3,true
 		wildcard, i, valid := findWildcard(path)
 		if i < 0 { // No wildcard found
 			break
@@ -300,6 +324,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 		}
 
 		// check if the wildcard has a name
+		// 通配符得有个名字吧,  :a ， 至少两个字符
 		if len(wildcard) < 2 {
 			panic("wildcards must be named with a non-empty name in path '" + fullPath + "'")
 		}
@@ -310,15 +335,20 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 			panic("wildcard segment '" + wildcard +
 				"' conflicts with existing children in path '" + fullPath + "'")
 		}
-
+		// 处理 param :
 		if wildcard[0] == ':' { // param
+
 			if i > 0 {
+				// addRoute里面，对这种非 : 开头的插入路径，已经预先创建了子节点n，
+				// 把 : 前面的部分赋值给 n
+				// 举例： 已有 /a 节点，添加 /a/b/:name节点，此时path =  /b/:name, n 已经在addRoute创建了，现在把n指向 /b/,把path置为:name
 				// Insert prefix before the current wildcard
 				n.path = path[:i]
 				path = path[i:]
 			}
 
 			n.wildChild = true
+			// 创建 param子节点
 			child := &node{
 				nType:    param,
 				path:     wildcard,
@@ -330,6 +360,9 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 
 			// if the path doesn't end with the wildcard, then there
 			// will be another non-wildcard subpath starting with '/'
+			// 通配符路径后面还有长度，
+			// eg: :name/xxx/:ddd
+			//  path置为/xxx/:ddd， 创建一个空子节点， n指向子节点，继续大循环
 			if len(wildcard) < len(path) {
 				path = path[len(wildcard):]
 
@@ -343,25 +376,30 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 			}
 
 			// Otherwise we're done. Insert the handle in the new leaf
+			// 否则到头了，handlers赋值给节点n
 			n.handlers = handlers
 			return
 		}
 
+		// 处理 catchAll *
 		// catchAll
+		// catchAll必须是结尾，不能在path中间
 		if i+len(wildcard) != len(path) {
 			panic("catch-all routes are only allowed at the end of the path in path '" + fullPath + "'")
 		}
-
+		// eg: /src1/ 插入 /src1/*filepath 报错，  /src1/*filepath可以匹配（/src1/, /src1/xxx），包含了
 		if len(n.path) > 0 && n.path[len(n.path)-1] == '/' {
 			panic("catch-all conflicts with existing handle for the path segment root in path '" + fullPath + "'")
 		}
 
 		// currently fixed width 1 for '/'
+		// eg: /src2*filepath
 		i--
 		if path[i] != '/' {
 			panic("no / before catch-all in path '" + fullPath + "'")
 		}
-
+		// 这里 /src/*filepath 拆分为 /src -> 空节点 -> /*filepath
+		// 为啥？
 		n.path = path[:i]
 
 		// First node: catchAll node with empty path
@@ -390,6 +428,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 	}
 
 	// If no wildcard was found, simply insert the path and handle
+	// 莫得通配符时，path和handlers直接放在当前节点上。 （这个节点在addRoute已经创建好了）
 	n.path = path
 	n.handlers = handlers
 	n.fullPath = fullPath
@@ -418,6 +457,7 @@ walk: // Outer loop for walking the tree
 				// If this node does not have a wildcard (param or catchAll)
 				// child, we can just look up the next child node and continue
 				// to walk down the tree
+				// 莫得通配符时，通过 indices 递归快速查找
 				if !n.wildChild {
 					idxc := path[0]
 					for i, c := range []byte(n.indices) {
@@ -430,11 +470,13 @@ walk: // Outer loop for walking the tree
 					// Nothing found.
 					// We can recommend to redirect to the same URL without a
 					// trailing slash if a leaf exists for that path.
+					// tsr标识。 路径去掉 / 就可以匹配
 					value.tsr = (path == "/" && n.handlers != nil)
 					return
 				}
 
 				// Handle wildcard child
+				// 节点如果有孩子节点是通配符节点，意味着节点只有一个孩子
 				n = n.children[0]
 				switch n.nType {
 				case param:

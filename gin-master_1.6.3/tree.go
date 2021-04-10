@@ -153,6 +153,7 @@ walk:
 		// since the existing key can't contain those chars.
 		i := longestCommonPrefix(path, n.path)
 
+		// eg: 已有 handler1：/a/b/c 添加 /a, 此时把 handler1 拆分为 newHandler: /a -> handler1: /b/c
 		// Split edge
 		if i < len(n.path) {
 			child := node{
@@ -173,7 +174,8 @@ walk:
 			n.wildChild = false
 			n.fullPath = fullPath[:parentFullPathIndex+i]
 		}
-
+		// 上面的if和下面的if可以同时来， 比如说 已有: /a/b 插入 /c/d, 先走上面,结果 / -> a/b, 再走下面  / -> a/b，c/d
+		// eg: 已有 handler1：/a 添加 /a/b/c, 此时添加子节点
 		// Make new node a child of this node
 		if i < len(path) {
 			path = path[i:]
@@ -183,6 +185,7 @@ walk:
 				n = n.children[0]
 				n.priority++
 
+				// eg: 已有 /a/:name 新增 /a/:name/xxx
 				// Check if the wildcard matches
 				if len(path) >= len(n.path) && n.path == path[:len(n.path)] &&
 					// Adding a child to a catchAll is not possible
@@ -191,7 +194,8 @@ walk:
 					(len(n.path) >= len(path) || path[len(n.path)] == '/') {
 					continue walk
 				}
-
+				// eg: 已有 /a/:name 新增 /a/:names， 抛出异常
+				// eg: 已有 /cmd/ -> :tool -> / -> :sub 新增 /cmd/vet, 抛出异常
 				pathSeg := path
 				if n.nType != catchAll {
 					pathSeg = strings.SplitN(path, "/", 2)[0]
@@ -239,6 +243,7 @@ walk:
 			return
 		}
 
+		// eg: 添加重复路径的情况  已有 /a  添加 /a
 		// Otherwise and handle to current node
 		if n.handlers != nil {
 			panic("handlers are already registered for path '" + fullPath + "'")

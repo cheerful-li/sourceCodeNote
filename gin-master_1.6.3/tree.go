@@ -457,6 +457,7 @@ walk: // Outer loop for walking the tree
 		prefix := n.path
 		if len(path) > len(prefix) {
 			if path[:len(prefix)] == prefix {
+
 				path = path[len(prefix):]
 				// If this node does not have a wildcard (param or catchAll)
 				// child, we can just look up the next child node and continue
@@ -485,17 +486,22 @@ walk: // Outer loop for walking the tree
 				switch n.nType {
 				case param:
 					// Find param end (either '/' or path end)
+					// 找到路径参数长度, 直到最近的/结束
 					end := 0
 					for end < len(path) && path[end] != '/' {
 						end++
 					}
 
 					// Save param value
+					// 保存参数。 value.params是一个数组
+					// 注意：结果是存入params指针指向的数组位置， 所以只有函数有params参数时才需要处理
 					if params != nil {
+						// 因为有for递归，只有在初次赋值时从参数params开始
 						if value.params == nil {
 							value.params = params
 						}
 						// Expand slice within preallocated capacity
+						// 为何不用append? 避免容量的多余分配？
 						i := len(*value.params)
 						*value.params = (*value.params)[:i+1]
 						val := path[:end]
@@ -511,6 +517,7 @@ walk: // Outer loop for walking the tree
 					}
 
 					// we need to go deeper!
+					// 继续处理参数路径的子节点
 					if end < len(path) {
 						if len(n.children) > 0 {
 							path = path[end:]
@@ -519,6 +526,7 @@ walk: // Outer loop for walking the tree
 						}
 
 						// ... but we can't
+						// 参数路径莫得子节点， 处理多尾斜杠
 						value.tsr = (len(path) == end+1)
 						return
 					}
@@ -531,11 +539,14 @@ walk: // Outer loop for walking the tree
 						// No handle found. Check if a handle for this path + a
 						// trailing slash exists for TSR recommendation
 						n = n.children[0]
+						// 处理少尾斜杠的情况
 						value.tsr = (n.path == "/" && n.handlers != nil)
 					}
 					return
 
 				case catchAll:
+					// catchAll的tree很有意思， /a/*name 会有 /a -> "" 空节点，wildChild为true -> /*name 三个节点。
+					// 走到这里时，都不用判断路径后续了，全部处理。 而且当前节点 /*name一定会有handlers
 					// Save param value
 					if params != nil {
 						if value.params == nil {
@@ -565,15 +576,17 @@ walk: // Outer loop for walking the tree
 				}
 			}
 		}
-
+		// 找到路径最后一个节点了
 		if path == prefix {
 			// We should have reached the node containing the handle.
 			// Check if this node has a handle registered.
+			// 有handlers
 			if value.handlers = n.handlers; value.handlers != nil {
 				value.fullPath = n.fullPath
 				return
 			}
-
+			// 莫得handlers
+			// 待理解
 			// If there is no handle for this route, but this route has a
 			// wildcard child, there must be a handle for this path with an
 			// additional trailing slash
@@ -598,6 +611,7 @@ walk: // Outer loop for walking the tree
 
 		// Nothing found. We can recommend to redirect to the same URL with an
 		// extra trailing slash if a leaf exists for that path
+		// 前面两个if都不满足， 此时待匹配路径小于当前节点路径。 检查tsr情况
 		value.tsr = (path == "/") ||
 			(len(prefix) == len(path)+1 && prefix[len(path)] == '/' &&
 				path == prefix[:len(prefix)-1] && n.handlers != nil)

@@ -431,10 +431,10 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 	}
 
 	tsrRoutes := [...]string{
-		"/hi/",
-		"/b",
-		"/search/gopher/",
-		"/cmd/vet",
+		//"/hi/",
+		//"/b",
+		//"/search/gopher/",
+		//"/cmd/vet",
 		"/src",
 		"/x/",
 		"/y",

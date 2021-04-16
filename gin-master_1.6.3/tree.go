@@ -414,6 +414,7 @@ func (n *node) insertChild(path string, fullPath string, handlers HandlersChain)
 		}
 
 		n.children = []*node{child}
+		// 注意： catch all 两个节点的父节点的indices是 '/'
 		n.indices = string('/')
 		n = child
 		n.priority++
@@ -597,9 +598,14 @@ walk: // Outer loop for walking the tree
 
 			// No handle found. Check if a handle for this path + a
 			// trailing slash exists for trailing slash recommendation
+			// eg1: 已注册 /src/ (两个节点， /src -> /），此时请求 /src
+			// eg2: 已注册 /src/*filepath （三个节点， /src -> "" -> /*filepath, 第一个节点 indices = "/", 第二个节点 nType = catchAll, 第三个节点有handlers），
+			//     此时请求 /src
 			for i, c := range []byte(n.indices) {
 				if c == '/' {
 					n = n.children[i]
+					// (len(n.path) == 1 && n.handlers != nil)  处理 eg1 ，此时子节点必须是 / 路径并且有handlers，才有可能匹配tsr
+					// (n.nType == catchAll && n.children[0].handlers != nil) 处理eg2
 					value.tsr = (len(n.path) == 1 && n.handlers != nil) ||
 						(n.nType == catchAll && n.children[0].handlers != nil)
 					return

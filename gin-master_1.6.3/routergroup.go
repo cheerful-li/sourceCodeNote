@@ -12,12 +12,14 @@ import (
 )
 
 // IRouter defines all router handle interface includes single and group router.
+// IRouter接口在IRoutes的基础上添加了路由分组的Group方法
 type IRouter interface {
 	IRoutes
 	Group(string, ...HandlerFunc) *RouterGroup
 }
 
 // IRoutes defines all router handle interface.
+// IRoutes接口定义了添加路由的所有方法
 type IRoutes interface {
 	Use(...HandlerFunc) IRoutes
 
@@ -39,12 +41,13 @@ type IRoutes interface {
 // RouterGroup is used internally to configure router, a RouterGroup is associated with
 // a prefix and an array of handlers (middleware).
 type RouterGroup struct {
-	Handlers HandlersChain
-	basePath string
-	engine   *Engine
-	root     bool
+	Handlers HandlersChain // 路由组的全部中间件，包含了全部祖先routerGroup的中间件
+	basePath string // 路由组的基准路径
+	engine   *Engine // 保有engine的指针
+	root     bool // 是否根routerGroup对象
 }
 
+// RouterGroup实现了IRouter接口
 var _ IRouter = &RouterGroup{}
 
 // Use adds middleware to the group, see example code in GitHub.
@@ -57,7 +60,7 @@ func (group *RouterGroup) Use(middleware ...HandlerFunc) IRoutes {
 // For example, all the routes that use a common middleware for authorization could be grouped.
 func (group *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
 	return &RouterGroup{
-		Handlers: group.combineHandlers(handlers),
+		Handlers: group.combineHandlers(handlers), // handlers包含了当前路由组的中间件和所有祖先routerGroup的中间件
 		basePath: group.calculateAbsolutePath(relativePath),
 		engine:   group.engine,
 	}

@@ -86,7 +86,7 @@ type Context struct {
 
 func (c *Context) reset() {
 	c.Writer = &c.writermem
-	c.Params = c.Params[0:0]
+	c.Params = c.Params[0:0] // 就算是nil也可以 [0:0]
 	c.handlers = nil
 	c.index = -1
 

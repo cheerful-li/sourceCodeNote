@@ -55,7 +55,7 @@ type RoutesInfo []RouteInfo
 // Engine is the framework's instance, it contains the muxer, middleware and configuration settings.
 // Create an instance of Engine, by using New() or Default()
 type Engine struct {
-	RouterGroup
+	RouterGroup // engine中组合了RouterGroup, 意味着它自身就是根routerGroup
 
 	// Enables automatic redirection if the current route can't be matched but a
 	// handler for the path with (without) the trailing slash exists.
@@ -108,8 +108,8 @@ type Engine struct {
 	secureJSONPrefix string
 	HTMLRender       render.HTMLRender
 	FuncMap          template.FuncMap
-	allNoRoute       HandlersChain
-	allNoMethod      HandlersChain
+	allNoRoute       HandlersChain // engine上的全部中间件 + noRoute中间件
+	allNoMethod      HandlersChain  // engine上的全部中间件 + noMethod中间件
 	noRoute          HandlersChain
 	noMethod         HandlersChain
 	pool             sync.Pool
@@ -117,6 +117,7 @@ type Engine struct {
 	maxParams        uint16
 }
 
+// 确保Engine上定义的方法不会不小心不兼容的改写了RouterGroup的方法
 var _ IRouter = &Engine{}
 
 // New returns a new blank Engine instance without any middleware attached.
@@ -133,7 +134,7 @@ func New() *Engine {
 		RouterGroup: RouterGroup{
 			Handlers: nil,
 			basePath: "/",
-			root:     true,
+			root:     true, // 根
 		},
 		FuncMap:                template.FuncMap{},
 		RedirectTrailingSlash:  true,
@@ -150,6 +151,7 @@ func New() *Engine {
 		secureJSONPrefix:       "while(1);",
 	}
 	engine.RouterGroup.engine = engine
+	// context 有对象池
 	engine.pool.New = func() interface{} {
 		return engine.allocateContext()
 	}
@@ -157,6 +159,7 @@ func New() *Engine {
 }
 
 // Default returns an Engine instance with the Logger and Recovery middleware already attached.
+// Default在New的基础上，添加了默认的两个中间件， 日志和panic自动恢复
 func Default() *Engine {
 	debugPrintWARNINGDefault()
 	engine := New()
@@ -164,7 +167,9 @@ func Default() *Engine {
 	return engine
 }
 
+// 创建context对象
 func (engine *Engine) allocateContext() *Context {
+	// maxParams是所有路由里面参数最多的数量
 	v := make(Params, 0, engine.maxParams)
 	return &Context{engine: engine, params: &v}
 }
@@ -253,6 +258,8 @@ func (engine *Engine) rebuild405Handlers() {
 	engine.allNoMethod = engine.combineHandlers(engine.noMethod)
 }
 
+// routerGroup的各种路由注册方法最终会调用group.handle拼装path和组装handlers, 然后调用group.engine.addRoute
+// 参数handlers已经包含了中间件
 func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	assert1(path[0] == '/', "path must begin with '/'")
 	assert1(method != "", "HTTP method can not be empty")
@@ -266,6 +273,7 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 		root.fullPath = "/"
 		engine.trees = append(engine.trees, methodTree{method: method, root: root})
 	}
+	// 路由数上添加路由
 	root.addRoute(path, handlers)
 
 	// Update maxParams
@@ -276,6 +284,7 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 
 // Routes returns a slice of registered routes, including some useful information, such as:
 // the http method, path and the handler name.
+// 返回全部注册路由列表，包含method， path, handler
 func (engine *Engine) Routes() (routes RoutesInfo) {
 	for _, tree := range engine.trees {
 		routes = iterate("", tree.method, routes, tree.root)
@@ -285,6 +294,7 @@ func (engine *Engine) Routes() (routes RoutesInfo) {
 
 func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
 	path += root.path
+	// 路由树中每个节点，如果有handlers，那么一定是注册路由，不是中间节点。 handlers最后一个是路由，其它是中间件
 	if len(root.handlers) > 0 {
 		handlerFunc := root.handlers.Last()
 		routes = append(routes, RouteInfo{
@@ -308,6 +318,7 @@ func (engine *Engine) Run(addr ...string) (err error) {
 
 	address := resolveAddress(addr)
 	debugPrint("Listening and serving HTTP on %s\n", address)
+	// engine需要实现 ServeHTTP(ResponseWriter, *Request)方法
 	err = http.ListenAndServe(address, engine)
 	return
 }

@@ -379,6 +379,7 @@ func (engine *Engine) RunListener(listener net.Listener) (err error) {
 }
 
 // ServeHTTP conforms to the http.Handler interface.
+// 请求处理的入口，从对象池取个context，重置，处理请求，放回context
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := engine.pool.Get().(*Context)
 	c.writermem.reset(w)
@@ -393,6 +394,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // HandleContext re-enter a context that has been rewritten.
 // This can be done by setting c.Request.URL.Path to your new target.
 // Disclaimer: You can loop yourself to death with this, use wisely.
+// 支持修改 c.Request.URL.Path， 然后重新匹配路由并处理
 func (engine *Engine) HandleContext(c *Context) {
 	oldIndexValue := c.index
 	c.reset()

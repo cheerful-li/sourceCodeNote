@@ -27,6 +27,8 @@ var cleanTests = []cleanPathTest{
 	// missing root
 	{"", "/"},
 	{"a/", "/a/"},
+	{"/abc/./def", "/abc/def"},
+	{"/abc", "/abc"},
 	{"abc", "/abc"},
 	{"abc/def", "/abc/def"},
 	{"a/b/c", "/a/b/c"},

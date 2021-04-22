@@ -48,7 +48,7 @@ type Context struct {
 	Request   *http.Request
 	Writer    ResponseWriter
 
-	Params   Params
+	Params   Params // Params和params两个属性是为啥
 	handlers HandlersChain
 	index    int8
 	fullPath string

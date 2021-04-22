@@ -425,12 +425,15 @@ func (engine *Engine) handleHTTPRequest(c *Context) {
 		root := t[i].root
 		// Find route in tree
 		value := root.getValue(rPath, c.params, unescape)
+		// ??
 		if value.params != nil {
 			c.Params = *value.params
 		}
+		// 处理请求
 		if value.handlers != nil {
 			c.handlers = value.handlers
 			c.fullPath = value.fullPath
+			// 执行handlers
 			c.Next()
 			c.writermem.WriteHeaderNow()
 			return

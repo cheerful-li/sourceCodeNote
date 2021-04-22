@@ -212,6 +212,7 @@ func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileS
 
 func (group *RouterGroup) combineHandlers(handlers HandlersChain) HandlersChain {
 	finalSize := len(group.Handlers) + len(handlers)
+	// handlers最大数量限制 63 个
 	if finalSize >= int(abortIndex) {
 		panic("too many handlers")
 	}

@@ -30,6 +30,7 @@ func (r String) WriteContentType(w http.ResponseWriter) {
 }
 
 // WriteString writes data according to its format and write custom ContentType.
+// format 参数可选， 两个参数时，format的值就是数据
 func WriteString(w http.ResponseWriter, format string, data []interface{}) (err error) {
 	writeContentType(w, plainContentType)
 	if len(data) > 0 {

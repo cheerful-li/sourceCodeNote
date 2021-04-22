@@ -39,6 +39,7 @@ const (
 // BodyBytesKey indicates a default body bytes key.
 const BodyBytesKey = "_gin-gonic/gin/bodybyteskey"
 
+// 一个路由的最大handlers数量
 const abortIndex int8 = math.MaxInt8 / 2
 
 // Context is the most important part of gin. It allows us to pass variables between middleware,
@@ -46,7 +47,7 @@ const abortIndex int8 = math.MaxInt8 / 2
 type Context struct {
 	writermem responseWriter
 	Request   *http.Request
-	Writer    ResponseWriter
+	Writer    ResponseWriter // Writer和writermem两个属性为啥
 
 	Params   Params // Params和params两个属性是为啥
 	handlers HandlersChain
@@ -101,6 +102,7 @@ func (c *Context) reset() {
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
 // This has to be used when the context has to be passed to a goroutine.
+// 需要把context给协程的时候，要copy
 func (c *Context) Copy() *Context {
 	cp := Context{
 		writermem: c.writermem,
@@ -124,6 +126,7 @@ func (c *Context) Copy() *Context {
 
 // HandlerName returns the main handler's name. For example if the handler is "handleGetUsers()",
 // this function will return "main.handleGetUsers".
+// 返回handler的函数名
 func (c *Context) HandlerName() string {
 	return nameOfFunction(c.handlers.Last())
 }
@@ -139,6 +142,7 @@ func (c *Context) HandlerNames() []string {
 }
 
 // Handler returns the main handler.
+// 返回handler函数
 func (c *Context) Handler() HandlerFunc {
 	return c.handlers.Last()
 }
@@ -148,6 +152,7 @@ func (c *Context) Handler() HandlerFunc {
 //     router.GET("/user/:id", func(c *gin.Context) {
 //         c.FullPath() == "/user/:id" // true
 //     })
+// 路由注册时的路径
 func (c *Context) FullPath() string {
 	return c.fullPath
 }
@@ -161,6 +166,7 @@ func (c *Context) FullPath() string {
 // See example in GitHub.
 func (c *Context) Next() {
 	c.index++
+	// handler里面可以调用c.Abort方法来终止后面handlers的执行（Abort会修改c.index为最大值
 	for c.index < int8(len(c.handlers)) {
 		c.handlers[c.index](c)
 		c.index++
@@ -176,6 +182,7 @@ func (c *Context) IsAborted() bool {
 // Let's say you have an authorization middleware that validates that the current request is authorized.
 // If the authorization fails (ex: the password does not match), call Abort to ensure the remaining handlers
 // for this request are not called.
+// 终止后面handlers的执行（Abort会修改c.index为最大值
 func (c *Context) Abort() {
 	c.index = abortIndex
 }

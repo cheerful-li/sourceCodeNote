@@ -39,7 +39,7 @@ const (
 // BodyBytesKey indicates a default body bytes key.
 const BodyBytesKey = "_gin-gonic/gin/bodybyteskey"
 
-// 一个路由的最大handlers数量
+// 一个路由的最大handlers数量， 63
 const abortIndex int8 = math.MaxInt8 / 2
 
 // Context is the most important part of gin. It allows us to pass variables between middleware,
@@ -167,6 +167,7 @@ func (c *Context) FullPath() string {
 func (c *Context) Next() {
 	c.index++
 	// handler里面可以调用c.Abort方法来终止后面handlers的执行（Abort会修改c.index为最大值
+	// 中间件里面也可以调用c.Next()来实现洋葱模型
 	for c.index < int8(len(c.handlers)) {
 		c.handlers[c.index](c)
 		c.index++
@@ -560,6 +561,7 @@ func (c *Context) get(m map[string][]string, key string) (map[string]string, boo
 }
 
 // FormFile returns the first file for the provided form key.
+// TODO: 了解multipart.File 和 multipart.FileHeader
 func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 	if c.Request.MultipartForm == nil {
 		if err := c.Request.ParseMultipartForm(c.engine.MaxMultipartMemory); err != nil {
@@ -571,6 +573,7 @@ func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 		return nil, err
 	}
 	f.Close()
+	// fh.Open()就会返回 multipart.File, 要记得Close
 	return fh, err
 }
 
@@ -587,7 +590,7 @@ func (c *Context) SaveUploadedFile(file *multipart.FileHeader, dst string) error
 		return err
 	}
 	defer src.Close()
-
+	// os.Create:  Create creates or truncates the named file. If the file already exists, it is truncated. If the file does not exist
 	out, err := os.Create(dst)
 	if err != nil {
 		return err

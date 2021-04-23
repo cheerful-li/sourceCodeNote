@@ -36,6 +36,7 @@ func mapFormByTag(ptr interface{}, form map[string][]string, tag string) error {
 		ptrVal = ptrVal.Elem()
 		pointed = ptrVal.Interface()
 	}
+	// 如果要绑定的值是 map类型，可能是 map[string][]string 或者 map[string]string
 	if ptrVal.Kind() == reflect.Map &&
 		ptrVal.Type().Key().Kind() == reflect.String {
 		if pointed != nil {
@@ -43,7 +44,7 @@ func mapFormByTag(ptr interface{}, form map[string][]string, tag string) error {
 		}
 		return setFormMap(ptr, form)
 	}
-
+	// 如果要绑定的值是 struct类型
 	return mappingByPtr(ptr, formSource(form), tag)
 }
 

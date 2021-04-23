@@ -18,6 +18,7 @@ func (formBinding) Name() string {
 	return "form"
 }
 
+// TODO: 深入下form bind, 熟悉下反射和tag的应用
 func (formBinding) Bind(req *http.Request, obj interface{}) error {
 	if err := req.ParseForm(); err != nil {
 		return err

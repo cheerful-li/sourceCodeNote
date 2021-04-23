@@ -44,7 +44,7 @@ type ResponseWriter interface {
 }
 
 type responseWriter struct {
-	http.ResponseWriter
+	http.ResponseWriter // 见net\http\server.go  response
 	size   int
 	status int
 }

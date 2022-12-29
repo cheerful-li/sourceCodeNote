@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@babel/cli": "7.0.0-beta.39",
-    "@babel/core": "7.0.0-beta.39",
+    "@babel/core": "7.20.7",
     "@babel/node": "7.0.0-beta.39",
     "@babel/polyfill": "7.0.0-beta.39",
     "@babel/preset-env": "7.0.0-beta.39",
@@ -51,7 +51,7 @@
     "@babel/preset-stage-2": "7.0.0-beta.39",
     "@babel/register": "7.0.0-beta.39",
     "babel-eslint": "^8.2.1",
-    "babel-loader": "8.0.0-beta.0",
+    "babel-loader": "8.3.0",
     "babel-plugin-annotate-pure-calls": "babel7",
     "bundlesize": "^0.11.0",
     "cross-env": "^1.0.8",
@@ -89,7 +89,7 @@
     "tape": "^4.8.0",
     "typescript": "^2.6.2",
     "typings-tester": "^0.2.2",
-    "webpack": "^3.8.1",
+    "webpack": "^5.75.0",
     "webpack-dev-middleware": "^1.12.0",
     "webpack-hot-middleware": "^2.19.1"
   }
